@@ -1,0 +1,12 @@
+{
+  "name": "WEB2 lab5 PWA",
+  "short_name": "WEB2PWA",
+  "description": "[WEB2] Peta laboratorijska vježba - Progresivna web aplikacija",
+  "display": "fullscreen",
+  "theme_color": "red",
+  "background_color": "#DDD",
+  "start_url": "/index.html",
+  "orientation": "portrait-primary",
+  "lang": "en-US",
+  "icons": []
+}

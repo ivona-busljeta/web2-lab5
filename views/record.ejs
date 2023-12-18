@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+    <%- include('./partials/head'); %>
+    <body>
+        <%- include('./partials/navigation'); %>
+
+        <div id="recordPost" class="d-flex flex-column align-items-center">
+            <h3>What's on your mind?</h3>
+            <div id="beforeRecord" class="d-flex flex-column align-items-center">
+                <button id="recordButton" class="btn btn-dark mt-2">
+                    <i class="bi bi-mic"></i>
+                    Record
+                </button>
+            </div>
+            <div id="afterRecord" class="d-none">
+                <audio id="audioPlayer" controls></audio>
+                <input id="postName" type="text" class="form-control my-2" placeholder="enter description" />
+                <button id="uploadButton" class="btn btn-dark">
+                    <i class="bi bi-cloud-upload"></i>
+                    Upload
+                </button>
+            </div>
+        </div>
+
+        <%- include('./partials/scripts'); %>
+        <script type="module">
+            import { set } from '/idb-keyval.js';
+
+            let mediaRecorder;
+            let audioChunks = [];
+            let audioBlob;
+
+            let beforeRecord = document.getElementById("beforeRecord");
+            let afterRecord = document.getElementById("afterRecord");
+            let postName = document.getElementById("postName");
+
+            const recordButton = document.getElementById('recordButton');
+            const uploadButton = document.getElementById('uploadButton');
+            const audioPlayer = document.getElementById('audioPlayer');
+
+            recordButton.addEventListener('mousedown', startRecording);
+            recordButton.addEventListener('mouseup', stopRecording);
+            recordButton.addEventListener('touchstart', startRecording);
+            recordButton.addEventListener('touchend', stopRecording);
+
+            uploadButton.addEventListener('click', uploadRecording);
+
+            async function startRecording() {
+                beforeRecord.classList.remove("d-none");
+                beforeRecord.classList.add("d-flex", "flex-column", "align-items-center");
+                afterRecord.classList.remove("d-flex", "flex-column", "align-items-center");
+                afterRecord.classList.add("d-none");
+
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.ondataavailable = function (event) {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = function () {
+                    audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    audioPlayer.src = URL.createObjectURL(audioBlob);
+                };
+
+                audioChunks = [];
+                mediaRecorder.start();
+            }
+
+            function stopRecording() {
+                afterRecord.classList.remove("d-none");
+                afterRecord.classList.add("d-flex", "flex-column", "align-items-center");
+                beforeRecord.classList.remove("d-flex", "flex-column", "align-items-center");
+                beforeRecord.classList.add("d-none");
+
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+            }
+
+            function uploadRecording(event) {
+                event.preventDefault();
+                if ("serviceWorker" in navigator && "SyncManager" in window && audioBlob) {
+                    const formData = new FormData();
+                    const fileName = postName.value.trim().replace(/\s/g, "_");
+                    formData.append('audio', audioBlob, `${fileName}.wav`);
+
+                    fetch('/savePost', {
+                        method: 'POST',
+                        body: formData
+                    })
+                        .then(res => res.blob())
+                        .then(blob => {
+                            let ts = new Date().toISOString();
+                            let id = ts + fileName;
+                            console.log(blob);
+                            set(id, { id, ts, title: postName.value.trim(), audio: blob });
+                            return navigator.serviceWorker.ready;
+                        })
+                        .then(reg => reg.sync.register('sync-posts'))
+                        .catch(err => {
+                            console.error('Error uploading file', err);
+                        });
+                } else {
+                    console.log('No recording to upload.');
+                }
+            }
+        </script>
+    </body>
+</html>
