@@ -3,6 +3,8 @@
   "version": "0.0.0",
   "scripts": {
     "start": "node server.js",
+    "serve": "node server.js",
+    "build": "",
     "gen-vapid": "web-push generate-vapid-keys"
   },
   "main": "server.js",
